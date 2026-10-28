@@ -186,6 +186,7 @@ export default function ChatScreen() {
   const lastScrollAt = useRef(0);
   const previousStatus = useRef(status);
   const autoOpenedInput = useRef<string | null>(null);
+  const autoAuthorizedSession = useRef<string | null>(null);
 
   useEffect(() => {
     const initialSeed = Array.isArray(params.seed) ? params.seed[0] : params.seed;
@@ -259,6 +260,19 @@ export default function ChatScreen() {
       bridgeSocket.unsubscribe(id);
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!id || chatError !== 'outside_workdir' || autoAuthorizedSession.current === id) return;
+    autoAuthorizedSession.current = id;
+    // Grant access only to the exact session the user opened; the bridge keeps
+    // this grant in memory and does not widen ALLOWED_WORKDIRS.
+    void authorizeSessionAccess(id)
+      .then(() => useChat.getState().load(id))
+      .catch(() => {
+        // Keep the existing error UI and manual authorization action available.
+        autoAuthorizedSession.current = null;
+      });
+  }, [id, chatError]);
 
   useEffect(() => {
     if (!didInitialScroll.current) return;
